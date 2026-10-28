@@ -3,6 +3,81 @@
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#061b2a,#0b4050);color:#effaf8;font:16px system-ui,Arial,sans-serif;min-height:100vh;padding:22px 14px}.wrap{max-width:670px;margin:auto}header{text-align:center;margin:22px 0 26px}h1{font-size:clamp(29px,7vw,40px);margin:10px 0;color:#aef1cf}h2{margin:0 0 12px;font-size:22px}.tag{display:inline-block;background:#1d5867;border:1px solid #5a98a1;border-radius:30px;padding:7px 16px;font-weight:700}.card{background:#103c4c;border:1px solid #447d88;border-radius:18px;padding:23px;margin:16px 0;box-shadow:0 10px 30px #0002}.muted{color:#c6dadd;line-height:1.6}label{display:block;font-weight:600;margin:16px 0 7px}input,textarea{width:100%;padding:14px;border-radius:11px;border:1px solid #7ea2a9;background:#f9fffe;color:#142e37;font:inherit}textarea{min-height:105px;resize:vertical}.check{display:flex;gap:10px;align-items:flex-start;font-weight:400}.check input{width:auto;margin-top:5px}button{background:#53d3a1;color:#062d2b;border:0;border-radius:11px;padding:14px 18px;font:inherit;font-weight:750;cursor:pointer;width:100%;margin-top:18px}button:disabled{opacity:.5;cursor:not-allowed}.note{border-left:3px solid #f6c873;padding-left:13px;color:#ffe6ad}.small{font-size:13px}.status{font-weight:700;color:#fce3a5}a{color:#a8f0d0}footer{text-align:center;margin:26px 0;color:#b5d0d3}
 </style></head><body><main class="wrap"><header><div style="font-size:55px">🔑</div><h1>Min Ting-ID</h1><p class="muted">Takk for at du vil hjelpe en gjenstand hjem!</p><div class="tag" id="tag">ID: Leser brikken …</div></header>
 <section class="card"><h2>Har du funnet denne gjenstanden?</h2><p id="info" class="muted">Vi gjør klar informasjon om ID-brikken.</p><p id="lost" class="status" hidden></p></section>
-<section class="card"><h2>💬 Meld fra til eieren</h2><p class="muted">Når løsningen er aktivert, kan du melde funnet uten å opprette konto. Eieren skal få e-post og automatisk SMS.</p><form id="report"><label for="message">Melding til eieren</label><textarea id="message" placeholder="For eksempel: Jeg fant nøklene ved butikken."></textarea><label for="contact">Hvordan kan eieren kontakte deg? (valgfritt)</label><input id="contact" placeholder="Telefon eller e-post"><label class="check"><input type="checkbox" id="location"> Jeg ønsker å dele posisjonen min ved innsending</label><button type="submit" disabled>📨 Meld funnet – kommer snart</button></form><p class="note small" id="notice">Testsiden er klar, men sikker oppslagstjeneste, meldingsmottak og SMS/e-post-varsling er ikke koblet til ennå. Ingen melding sendes fra denne siden.</p></section><footer><a href="https://mindyreide.no/">Til Min Dyre-ID</a></footer></main><script>
-const params=new URLSearchParams(location.search),code=(params.get('id')||'').trim().toUpperCase();const valid=/^MT-[0-9]{6,}$/.test(code);document.getElementById('tag').textContent=valid?'ID: '+code:'Ingen gyldig ID i lenken';document.getElementById('info').textContent=valid?'Brikke '+code+' er registrert som lenke. Opplysninger om gjenstanden vises her når sikker databaseoppslag er aktivert.':'Åpne siden ved å skanne en Min Ting-ID-brikke med gyldig ID.';document.getElementById('report').addEventListener('submit',e=>e.preventDefault());
+<section class="card"><h2>💬 Meld fra til eieren</h2><p class="muted">Du kan melde funnet uten å opprette konto. Eieren varsles via SMS og e-post når varslingstjenestene er konfigurert.</p><form id="report"><label for="message">Melding til eieren</label><textarea id="message" required minlength="10" maxlength="1000" placeholder="For eksempel: Jeg fant nøklene ved butikken."></textarea><label for="contact">Hvordan kan eieren kontakte deg? (valgfritt)</label><input id="contact" maxlength="160" placeholder="Telefon eller e-post"><label class="check"><input type="checkbox" id="location"> Jeg ønsker å dele posisjonen min ved innsending</label><button id="send" type="submit" disabled>📨 Meld funnet</button></form><p class="note small" id="notice">Laster inn informasjon om brikken …</p></section><footer><a href="https://mindyreide.no/">Til Min Dyre-ID</a></footer></main><script>
+const $ = id => document.getElementById(id);
+const code = (new URLSearchParams(location.search).get('id') || '').trim().toUpperCase();
+const valid = /^MT-\\d{6}$/.test(code);
+const endpoint = 'https://kxudiviidwwwclbzgdyx.supabase.co/functions/v1/send-ting-found-notification';
+$('tag').textContent = valid ? 'ID: ' + code : 'Ingen gyldig ID i lenken';
+
+async function callService(payload) {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  let result;
+  try { result = await response.json(); } catch { throw new Error('Ugyldig svar fra varslingstjenesten.'); }
+  if (!response.ok || result.ok === false) {
+    throw new Error(result.error || result.message || 'Tjenesten kunne ikke behandle forespørselen.');
+  }
+  return result;
+}
+
+async function loadTag() {
+  if (!valid) {
+    $('info').textContent = 'Skann en Min Ting-ID-brikke med gyldig ID.';
+    $('notice').textContent = 'Meldingen kan ikke sendes uten gyldig ID.';
+    return;
+  }
+  try {
+    const result = await callService({ handling: 'hent', kode: code });
+    const item = result.brikke || result.tag || result.gjenstand || result;
+    $('info').textContent = item.navn || item.gjenstand || item.beskrivelse || 'Registrert gjenstand';
+    if (item.status === 'savnet') {
+      $('lost').hidden = false;
+      $('lost').textContent = '🔴 Meldt savnet';
+    }
+    $('send').disabled = false;
+    $('notice').textContent = 'Skriv en melding og trykk «Meld funnet».';
+  } catch (error) {
+    $('info').textContent = 'Kunne ikke hente informasjon om brikken.';
+    $('notice').textContent = 'Varslingstjenesten er ikke tilgjengelig: ' + error.message;
+  }
+}
+
+$('report').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!valid || $('send').disabled) return;
+  $('send').disabled = true;
+  $('notice').textContent = 'Sender melding …';
+  let breddegrad = null, lengdegrad = null;
+  if ($('location').checked) {
+    try {
+      const position = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {timeout: 12000, enableHighAccuracy: true}));
+      breddegrad = position.coords.latitude;
+      lengdegrad = position.coords.longitude;
+    } catch {
+      $('notice').textContent = 'Posisjonen kunne ikke hentes. Prøver å sende uten posisjon …';
+    }
+  }
+  try {
+    await callService({
+      handling: 'meld',
+      kode: code,
+      melding: $('message').value.trim(),
+      kontakt: $('contact').value.trim(),
+      breddegrad,
+      lengdegrad
+    });
+    $('notice').textContent = '✅ Funnet er registrert. Takk for hjelpen! Varsling blir forsøkt sendt til eieren.';
+    $('report').reset();
+  } catch (error) {
+    $('notice').textContent = '❌ Meldingen ble ikke sendt: ' + error.message;
+  } finally {
+    $('send').disabled = false;
+  }
+});
+loadTag();
 </script></body></html>
