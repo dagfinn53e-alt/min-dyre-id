@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Min Ting-ID – Registrering</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#092738;color:#eef8fa;font:16px Arial,sans-serif}
+main{max-width:800px;margin:auto}
+h1{color:#a8ebc8}
+section{background:#123d51;border:1px solid #47758a;border-radius:16px;padding:22px;margin:18px 0}
+label{display:block;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:12px;border-radius:9px;border:0;font:inherit}
+textarea{height:90px}
+button,a.btn{display:inline-block;background:#50c796;color:#092738;padding:13px 18px;border:0;border-radius:10px;font-weight:bold;cursor:pointer;text-decoration:none;margin-top:12px}
+a.btn{background:#e3edf1}
+.hidden{display:none}
+.check{display:flex;align-items:center;gap:10px}
+.check input{width:auto}
+.item{padding:14px 0;border-top:1px solid #54798a}
+p{line-height:1.5}
+small{color:#c3d6df}
+</style>
+</head>
+<body>
+<main>
+<h1>🔑 Min Ting-ID</h1>
+<p>Registrer og administrer dine ID-brikker.</p>
+<a class="btn" href="https://mindyreide.no/">← Til forsiden</a>
+
+<section id="loginBox">
+<h2>Logg inn</h2>
+<label>E-postadresse</label>
+<input id="email" type="email" placeholder="din@epost.no">
+<button id="login">✉️ Send innloggingslenke</button>
+<p id="loginMsg"></p>
+</section>
+
+<section id="ownerBox" class="hidden">
+<p id="ownerEmail"></p>
+<button id="logout">Logg ut</button>
+</section>
+
+<section id="registerBox" class="hidden">
+<h2>Registrer ny brikke</h2>
+<p>Brikken får automatisk et nummer, for eksempel MT-000001.</p>
+<form id="form">
+<label>Navn på gjenstanden</label>
+<input id="name" maxlength="80" required placeholder="Bilnøkler">
+
+<label>Type gjenstand</label>
+<select id="kind">
+<option value="nøkler">🔑 Nøkler</option>
+<option value="bagasje">🧳 Bagasje</option>
+<option value="ryggsekk">🎒 Ryggsekk</option>
+<option value="lommebok">👛 Lommebok</option>
+<option value="annet">📦 Annet</option>
+</select>
+
+<label>Beskrivelse</label>
+<textarea id="description" maxlength="350" placeholder="Beskriv gjenstanden"></textarea>
+
+<label>Telefonnummer (valgfritt)</label>
+<input id="phone" type="tel" maxlength="30">
+
+<label class="check">
+<input type="checkbox" id="showPhone">
+Vis telefonnummer til finneren når skannesiden er klar
+</label>
+
+<button id="save" type="submit">💾 Registrer brikke</button>
+<p id="saveMsg"></p>
+</form>
+</section>
+
+<section id="listBox" class="hidden">
+<h2>Mine ID-brikker</h2>
+<p id="listMsg"></p>
+<div id="list"></div>
+<button id="refresh">🔄 Oppdater</button>
+</section>
+
+<small>Første versjon med ekte databaselagring.
+QR/NFC-skanning og varsling er ikke aktivert ennå.</small>
+</main>
+
+<script type="module">
+import {createClient} from
+'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const db=createClient(
+'https://kxudiviidwwwclbzgdyx.supabase.co',
+'sb_publishable_EaSgrgWqXKnaRRRkKparWA_ZmmRG8QH'
+);
+
+const $=id=>document.getElementById(id);
+const msg=(id,text)=>$(id).textContent=text;
+let user=null;
+
+async function refresh(){
+$('list').replaceChildren();
+msg('listMsg','Henter brikker ...');
+
+const {data,error}=await db
+.from('min_ting_id_brikker')
+.select('kode,navn,beskrivelse,status')
+.order('opprettet',{ascending:false});
+
+if(error){
+msg('listMsg','Feil: '+error.message);
+return;
+}
+
+msg('listMsg',data.length?
+data.length+' registrerte brikker':
+'Ingen brikker registrert ennå.');
+
+for(const t of data){
+const div=document.createElement('div');
+div.className='item';
+const title=document.createElement('strong');
+title.textContent=t.kode+' – '+t.navn;
+const info=document.createElement('p');
+info.textContent=(t.beskrivelse||'Ingen beskrivelse')+
+' · '+(t.status==='savnet'?'🔴 Savnet':'🟢 Normal');
+div.append(title,info);
+$('list').append(div);
+}
+}
+
+async function sync(){
+const {data,error}=await db.auth.getUser();
+user=error?null:data.user;
+
+$('loginBox').classList.toggle('hidden',!!user);
+for(const id of ['ownerBox','registerBox','listBox']){
+$(id).classList.toggle('hidden',!user);
+}
+
+if(user){
+msg('ownerEmail','Innlogget som '+user.email);
+await refresh();
+}
+}
+
+$('login').onclick=async()=>{
+const email=$('email').value.trim();
+if(!email){
+msg('loginMsg','Skriv inn e-postadresse.');
+return;
+}
+msg('loginMsg','Sender innloggingslenke ...');
+
+const {error}=await db.auth.signInWithOtp({
+email,
+options:{
+emailRedirectTo:
+'https://mindyreide.no/min-ting-id-registrering.html'
+}
+});
+
+msg('loginMsg',error?
+'Feil: '+error.message:
+'Sjekk e-posten din for ny innloggingslenke.');
+};
+
+$('logout').onclick=async()=>{
+await db.auth.signOut({scope:'global'});
+await sync();
+};
+
+$('refresh').onclick=refresh;
+
+$('form').onsubmit=async event=>{
+event.preventDefault();
+if(!user)return;
+
+const name=$('name').value.trim();
+const phone=$('phone').value.trim();
+
+if($('showPhone').checked&&!phone){
+msg('saveMsg','Skriv inn telefonnummer først.');
+return;
+}
+
+$('save').disabled=true;
+msg('saveMsg','Lagrer ...');
+
+const {data,error}=await db.rpc(
+'min_ting_id_opprett_brikke',{
+p_navn:name,
+p_beskrivelse:$('description').value,
+p_type:$('kind').value,
+p_telefon:phone||null,
+p_vis_telefon:$('showPhone').checked
+});
+
+if(error){
+msg('saveMsg','Feil: '+error.message);
+}else{
+msg('saveMsg','✅ Lagret! ID-nummer: '+data);
+$('form').reset();
+await refresh();
+}
+
+$('save').disabled=false;
+};
+
+db.auth.onAuthStateChange(()=>{
+setTimeout(sync,0);
+});
+sync();
+</script>
+</body>
+</html>
