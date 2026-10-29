@@ -29,6 +29,8 @@ small{color:#c3d6df}
 <h1>🔑 Min Ting-ID</h1>
 <p>Registrer og administrer dine ID-brikker.</p>
 <a class="btn" href="https://mindyreide.no/">← Til forsiden</a>
+<a class="btn" href="min-ting-id-bestilling.html">🛒 Bestill NFC-brikke – 125 kr inkl. porto</a>
+<details style="background:#123d51;padding:15px;border-radius:12px;margin-top:16px"><summary style="cursor:pointer;font-weight:bold">📖 Slik gjør du</summary><ol style="line-height:1.8"><li>Bestill brikken for 125 kr inkl. porto.</li><li>Logg inn med e-post og registrer brikkens ID og gjenstanden.</li><li>Fest NFC-brikken på gjenstanden.</li><li>En finner holder en NFC-mobil inntil brikken og sender en melding.</li><li>Du blir varslet når SMS- og e-postvarsling er aktivert og testet.</li></ol><b>Ingen app. Ingen månedlige avgifter. Ingen QR-kode.</b></details>
 
 <section id="loginBox">
 <h2>Logg inn</h2>
@@ -62,8 +64,11 @@ small{color:#c3d6df}
 <label>Beskrivelse</label>
 <textarea id="description" maxlength="350" placeholder="Beskriv gjenstanden"></textarea>
 
-<label>Telefonnummer (valgfritt)</label>
-<input id="phone" type="tel" maxlength="30">
+<label for="contactEmail">E-postadresse for varsling (påkrevd)</label>
+<input id="contactEmail" type="email" required readonly>
+<small>Bruker e-postadressen du logger inn med.</small>
+<label for="phone">Mobilnummer for SMS-varsling (påkrevd)</label>
+<input id="phone" type="tel" maxlength="30" required>
 
 <label class="check">
 <input type="checkbox" id="showPhone">
@@ -83,7 +88,7 @@ Vis telefonnummer til finneren når skannesiden er klar
 </section>
 
 <small>Første versjon med ekte databaselagring.
-QR/NFC-skanning og varsling er ikke aktivert ennå.</small>
+SMS og e-postvarsling er under testing.</small>
 </main>
 
 <script type="module">
@@ -141,6 +146,7 @@ $(id).classList.toggle('hidden',!user);
 
 if(user){
 msg('ownerEmail','Innlogget som '+user.email);
+$('contactEmail').value=user.email||'';
 await refresh();
 }
 }
@@ -179,6 +185,7 @@ if(!user)return;
 
 const name=$('name').value.trim();
 const phone=$('phone').value.trim();
+if(!phone){msg('saveMsg','Mobilnummer er påkrevd.');return;}
 
 if($('showPhone').checked&&!phone){
 msg('saveMsg','Skriv inn telefonnummer først.');
@@ -202,6 +209,7 @@ msg('saveMsg','Feil: '+error.message);
 }else{
 msg('saveMsg','✅ Lagret! ID-nummer: '+data);
 $('form').reset();
+$('contactEmail').value=user.email||'';
 await refresh();
 }
 
