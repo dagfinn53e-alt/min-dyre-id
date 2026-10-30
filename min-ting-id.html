@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Min Ting-ID – skannet brikke</title>
+<style>
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f1f6f9;color:#163047;font:16px system-ui,-apple-system,Segoe UI,sans-serif}header{background:#123c54;color:white;padding:18px 20px}header a{color:white;text-decoration:none;font-weight:800;font-size:20px}main{max-width:640px;margin:38px auto;padding:0 16px}.card{background:white;border:1px solid #d9e4ea;border-radius:22px;padding:30px;box-shadow:0 12px 35px #17394a12;text-align:center}.symbol{font-size:52px}h1{font-size:27px;margin:10px 0}p{line-height:1.6}.code{display:inline-block;background:#e9f4fa;color:#0d526d;border-radius:12px;padding:12px 22px;font-size:25px;font-weight:800;letter-spacing:1px;margin:12px 0}.note{background:#f6f9fb;border-radius:12px;padding:16px;text-align:left;margin:18px 0}.btn{display:inline-block;background:#176989;color:white;text-decoration:none;border-radius:12px;padding:13px 20px;font-weight:700;margin:8px 4px}.btn.secondary{background:#e7eff3;color:#17455d}.small{font-size:13px;color:#506778}footer{text-align:center;padding:18px;color:#607482}@media(max-width:440px){.card{padding:22px 17px}h1{font-size:23px}.code{font-size:22px}}
+</style></head><body>
+<header><a href="index.html">🐾 Min Dyre-ID · Min Ting-ID</a></header>
+<main><section class="card">
+<div class="symbol">🔎</div><h1>Du har skannet en Min Ting-ID</h1>
+<p id="intro">Vi kontrollerer brikkens ID-nummer.</p>
+<div class="code" id="code" hidden></div>
+<div class="note" id="info" hidden><strong>Har du funnet en gjenstand?</strong><p>Ta godt vare på gjenstanden. Denne ID-en kan brukes til å finne riktig eier når registrering og sikker kontaktløsning er aktivert.</p><p><strong>Kontaktfunksjonen er ennå ikke aktiv.</strong> Eierinformasjon vises derfor ikke her, og vi ber deg ikke oppgi personopplysninger.</p></div>
+<a class="btn" href="mailto:kontakt@mindyreide.no?subject=Min%20Ting-ID%20-%20funnet%20gjenstand" id="mail" hidden>Kontakt Min Ting-ID</a>
+<a class="btn secondary" href="index.html">← Tilbake til forsiden</a>
+<p class="small">Ingen personopplysninger vises uten at dette er satt opp på en sikker måte.</p>
+</section></main><footer>Min Ting-ID · mindyreide.no</footer>
+<script>
+(function(){
+const raw=new URLSearchParams(location.search).get('id')||'';
+const code=raw.trim().toUpperCase();
+const valid=/^MT-[A-Z0-9-]{3,24}$/.test(code);
+const intro=document.getElementById('intro');
+if(!valid){intro.textContent='Ingen gyldig Min Ting-ID ble funnet i lenken. Kontroller at hele QR- eller NFC-lenken er brukt.';return;}
+document.getElementById('code').textContent=code;
+document.getElementById('code').hidden=false;
+document.getElementById('info').hidden=false;
+intro.textContent='Brikken har ID-nummer:';
+const mail=document.getElementById('mail');
+mail.href='mailto:kontakt@mindyreide.no?subject='+encodeURIComponent('Funnet gjenstand – '+code);
+mail.hidden=false;
+})();
+</script></body></html>
